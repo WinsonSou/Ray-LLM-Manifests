@@ -1,0 +1,37 @@
+deployment_config: #<- Ray Serve Configuration https://docs.ray.io/en/latest/serve/production-guide/config.html #Basically its how many replicas of the model you want to spin up using the autoscaler
+  autoscaling_config:
+    min_replicas: 1
+    initial_replicas: 1
+    max_replicas: 8
+    target_num_ongoing_requests_per_replica: 16
+    metrics_interval_s: 10.0
+    look_back_period_s: 30.0
+    smoothing_factor: 0.5
+    downscale_delay_s: 300.0
+    upscale_delay_s: 15.0
+  max_concurrent_queries: 48
+  ray_actor_options:
+    resources: {}
+engine_config:
+  model_id: NousResearch/Llama-2-13b-chat-hf
+  hf_model_id: NousResearch/Llama-2-13b-chat-hf
+  type: VLLMEngine
+  engine_kwargs:
+    max_num_batched_tokens: 12288
+    max_num_seqs: 48
+  max_total_tokens: 4096
+  generation:
+    prompt_format:
+      system: "<<SYS>>\n{instruction}\n<</SYS>>\n\n"
+      assistant: " {instruction} </s><s>"
+      trailing_assistant: ""
+      user: "[INST] {system}{instruction} [/INST]"
+      system_in_user: true
+      default_system_message: ""
+    stopping_sequences: ["<unk>"]
+scaling_config:
+  num_workers: 4 #<- We need to take note of the number of attention heads and have it able to be divided by the number of workers without a remainder. for this example it's 40 attention heads. so we can only do 4 or 5, but not 6 as there will be a remainder. We also need to take into account the shape of the parameters (it seems) basically if you get an error, its likely because of the number of workers. shift up or shift down the number
+  num_gpus_per_worker: 1
+  num_cpus_per_worker: 8
+  placement_strategy: "PACK" #<- https://docs.ray.io/en/latest/ray-core/scheduling/placement-group.html#placement-strategy #If we want to have it across nodes, then we should use PACK instead of STRICT_PACK
+  resources_per_worker: {}
